@@ -4,8 +4,6 @@ on:
   workflow_dispatch:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
 
 jobs:
   build:
@@ -20,15 +18,15 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Set ANDROID_HOME
+      - name: Set Android SDK environment
         run: |
           echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> $GITHUB_ENV
 
-      - name: Install Android SDK components
+      - name: Install Android SDK 35
         run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-35" "build-tools;35.0.0" > /dev/null 2>&1 || true
-          echo "SDK components installed"
+          /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager "platforms;android-35" "build-tools;35.0.0"
+          /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
@@ -38,13 +36,13 @@ jobs:
       - name: Install npm dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Generate Android native project
+      - name: Generate Android project
         run: npx expo prebuild --platform android --clean
 
       - name: Build APK
         run: cd android && ./gradlew assembleRelease
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: phonics-app-apk
