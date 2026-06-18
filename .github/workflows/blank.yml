@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4
@@ -18,10 +18,13 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Set Android SDK
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 35
         run: |
-          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+          sdkmanager --licenses
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -35,11 +38,7 @@ jobs:
         run: npx expo prebuild --platform android --clean
 
       - name: Build APK
-        run: |
-          cd android
-          ./gradlew assembleRelease \
-            -Pandroid.compileSdkVersion=34 \
-            -Pandroid.buildToolsVersion=34.0.0
+        run: cd android && ./gradlew assembleRelease
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
