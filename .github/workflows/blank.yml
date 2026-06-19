@@ -29,10 +29,10 @@ jobs:
           npm install --legacy-peer-deps
           npx expo prebuild --platform android --clean
 
-          # Patch ExpoModulesCorePlugin for AGP compatibility
+          # Patch ExpoModulesCorePlugin - fix release component lookup
           PATCH=node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle
-          grep -n "components" $PATCH || true
-          sed -i "s/components\.release/components.getByName(\"release\")/" $PATCH
+          grep -n "release" $PATCH
+          sed -i "s/components\.getByName(\"release\")/components.findByName(\"release\")/" $PATCH
 
           cd android
           chmod +x gradlew
