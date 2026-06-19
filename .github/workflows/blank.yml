@@ -17,6 +17,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq openjdk-17-jdk
           echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
+          echo "$JAVA_HOME/bin" >> $GITHUB_PATH
 
       - name: Set Android SDK path
         run: |
@@ -29,11 +30,17 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Install Gradle
+        run: |
+          cd /tmp
+          curl -sL -o gradle.zip https://services.gradle.org/distributions/gradle-8.10.2-bin.zip
+          unzip -q gradle.zip
+          echo "/tmp/gradle-8.10.2/bin" >> $GITHUB_PATH
+
       - name: Build APK
         run: |
           cd android
-          chmod +x gradlew
-          ./gradlew assembleRelease -Pandroid.compileSdkVersion=34 -Pandroid.buildToolsVersion=34.0.0
+          gradle assembleRelease -Pandroid.compileSdkVersion=34 -Pandroid.buildToolsVersion=34.0.0
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
