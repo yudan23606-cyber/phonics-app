@@ -12,10 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install JDK 21
+      - name: Install JDK 17
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq openjdk-21-jdk
+          sudo apt-get install -y -qq openjdk-17-jdk
 
       - uses: actions/setup-node@v4
         with:
@@ -23,7 +23,7 @@ jobs:
 
       - name: Build APK
         env:
-          JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
           ANDROID_HOME: /usr/local/lib/android/sdk
         run: |
           npm install --legacy-peer-deps
@@ -33,12 +33,18 @@ jobs:
           PATCH=node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle
           sed -i "95s|from components\.release|// from components.release - CI compat|" $PATCH
 
-          # Fix 2 - include expo-modules-core composite build
+          # Fix 2 - add plugin repositories to settings.gradle
           SETTINGS=android/settings.gradle
-          echo "" >> $SETTINGS
-          echo 'def emcPkg = ["node", "--print", "require.resolve(\"expo-modules-core/package.json\")"].execute(null, rootDir).text.trim()' >> $SETTINGS
-          echo 'def emcAndroid = new File(new File(emcPkg).parentFile, "android")' >> $SETTINGS
-          echo 'if (emcAndroid.exists()) { includeBuild(emcAndroid) }' >> $SETTINGS
+          sed -i "/^pluginManagement {/a\    repositories {\n        gradlePluginPortal()\n        mavenCentral()\n        google()\n    }" $SETTINGS
+
+          # Fix 3 - get expo-modules-core version and add it to all module plugin declarations
+          EMC_VER=$(node -p "require('expo-modules-core/package.json').version")
+          echo "Expo Modules Core version: $EMC_VER"
+          find node_modules -maxdepth 3 -name "build.gradle" -path "*/android/*" | while read f; do
+            if grep -q "expo-module-gradle-plugin" "$f" 2>/dev/null; then
+              sed -i "s/id 'expo-module-gradle-plugin'/id 'expo-module-gradle-plugin' version '$EMC_VER'/" "$f"
+            fi
+          done
 
           cd android
           chmod +x gradlew
