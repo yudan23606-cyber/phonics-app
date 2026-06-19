@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "小树拼读",
+    "slug": "phonics-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#FF6F61"
+    },
+    "android": {
+      "package": "com.enn.phonics",
+      "adaptiveIcon": {
+        "backgroundColor": "#FF6F61"
+      },
+      "permissions": [
+        "RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-av",
+        {
+          "microphonePermission": "允许小树拼读使用麦克风进行发音评分"
+        }
+      ]
+    ],
+    "extra": {
+      "cloudbaseEnvId": "resume-1-d5gn952g8682d6d1b",
+      "eas": {
+        "projectId": "db9aa7db-6b97-40d2-996b-d8b67cc6b938"
+      }
+    },
+    "owner": "qddyd"
+  }
+}
