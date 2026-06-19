@@ -12,10 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install JDK 17
+      - name: Install JDK 21
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq openjdk-17-jdk
+          sudo apt-get install -y -qq openjdk-21-jdk
 
       - uses: actions/setup-node@v4
         with:
@@ -23,7 +23,7 @@ jobs:
 
       - name: Build APK
         env:
-          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+          JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
           ANDROID_HOME: /usr/local/lib/android/sdk
         run: |
           npm install --legacy-peer-deps
@@ -33,7 +33,7 @@ jobs:
           PATCH=node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle
           sed -i "95s|from components\.release|// from components.release - CI compat|" $PATCH
 
-          # Fix 2 - add expo-modules-core as composite build (no custom name)
+          # Fix 2 - include expo-modules-core composite build
           SETTINGS=android/settings.gradle
           echo "" >> $SETTINGS
           echo 'def emcPkg = ["node", "--print", "require.resolve(\"expo-modules-core/package.json\")"].execute(null, rootDir).text.trim()' >> $SETTINGS
@@ -42,7 +42,7 @@ jobs:
 
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease -Pandroid.compileSdkVersion=34 -Pandroid.buildToolsVersion=34.0.0
+          ./gradlew assembleRelease --no-daemon -Pandroid.compileSdkVersion=34 -Pandroid.buildToolsVersion=34.0.0
 
       - uses: actions/upload-artifact@v4
         with:
