@@ -29,20 +29,16 @@ jobs:
           npm install --legacy-peer-deps
           npx expo prebuild --platform android --clean
 
-          # Fix 1 - comment out publish config (not needed for APK build)
+          # Fix 1 - comment out publish config
           PATCH=node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle
           sed -i "95s|from components\.release|// from components.release - CI compat|" $PATCH
 
-          # Fix 2 - add expo-modules-core as composite build for plugin resolution
+          # Fix 2 - add expo-modules-core as composite build (no custom name)
           SETTINGS=android/settings.gradle
           echo "" >> $SETTINGS
-          echo '// Include expo-modules-core for plugin resolution' >> $SETTINGS
           echo 'def emcPkg = ["node", "--print", "require.resolve(\"expo-modules-core/package.json\")"].execute(null, rootDir).text.trim()' >> $SETTINGS
-          echo 'def emcDir = new File(emcPkg).parentFile' >> $SETTINGS
-          echo 'def emcAndroid = new File(emcDir, "android")' >> $SETTINGS
-          echo 'if (emcAndroid.exists()) {' >> $SETTINGS
-          echo '    includeBuild(emcAndroid) { name = "expo-modules-core" }' >> $SETTINGS
-          echo '}' >> $SETTINGS
+          echo 'def emcAndroid = new File(new File(emcPkg).parentFile, "android")' >> $SETTINGS
+          echo 'if (emcAndroid.exists()) { includeBuild(emcAndroid) }' >> $SETTINGS
 
           cd android
           chmod +x gradlew
