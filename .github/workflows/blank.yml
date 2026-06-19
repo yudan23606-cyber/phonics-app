@@ -29,10 +29,9 @@ jobs:
           npm install --legacy-peer-deps
           npx expo prebuild --platform android --clean
 
-          # Patch ExpoModulesCorePlugin - fix release component lookup
+          # Fix ExpoModulesCorePlugin - comment out publish config (not needed for APK build)
           PATCH=node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle
-          grep -n "release" $PATCH
-          sed -i "s/components\.getByName(\"release\")/components.findByName(\"release\")/" $PATCH
+          sed -i "95s|from components\.release|// from components.release - CI compat|" $PATCH
 
           cd android
           chmod +x gradlew
