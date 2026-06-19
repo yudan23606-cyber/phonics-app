@@ -22,18 +22,17 @@ jobs:
           node-version: 22
 
       - name: Build APK
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+          ANDROID_HOME: /usr/local/lib/android/sdk
         run: |
-          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-          export ANDROID_HOME=/usr/local/lib/android/sdk
-
           npm install --legacy-peer-deps
           npx expo prebuild --platform android --clean
 
+          PATCH="$PWD/node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle"
+          grep -n 'components\.release\|release.*components' "$PATCH" || true
+
           cd android
-
-          # 锁定 AGP 版本与 Expo SDK 52 兼容
-          sed -i "s/classpath('com.android.tools.build:gradle')/classpath('com.android.tools.build:gradle:8.5.2')/" build.gradle
-
           chmod +x gradlew
           ./gradlew assembleRelease -Pandroid.compileSdkVersion=34 -Pandroid.buildToolsVersion=34.0.0
 
