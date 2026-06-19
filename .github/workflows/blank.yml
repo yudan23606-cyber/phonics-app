@@ -27,6 +27,7 @@ jobs:
           export ANDROID_HOME=/usr/local/lib/android/sdk
 
           npm install --legacy-peer-deps
+          npx expo prebuild --platform android --clean
 
           cd android
           chmod +x gradlew
