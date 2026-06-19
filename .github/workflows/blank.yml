@@ -15,35 +15,24 @@ jobs:
       - name: Install JDK 17
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq openjdk-17-jdk
-          echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
-          echo "$JAVA_HOME/bin" >> $GITHUB_PATH
-
-      - name: Set Android SDK path
-        run: |
-          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+          sudo apt-get install -y -qq openjdk-17-jdk unzip
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Install dependencies
-        run: npm install --legacy-peer-deps
-
-      - name: Install Gradle
-        run: |
-          cd /tmp
-          curl -sL -o gradle.zip https://services.gradle.org/distributions/gradle-8.10.2-bin.zip
-          unzip -q gradle.zip
-          echo "/tmp/gradle-8.10.2/bin" >> $GITHUB_PATH
-
       - name: Build APK
         run: |
-          cd android
-          gradle assembleRelease -Pandroid.compileSdkVersion=34 -Pandroid.buildToolsVersion=34.0.0
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+          export ANDROID_HOME=/usr/local/lib/android/sdk
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+          npm install --legacy-peer-deps
+
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease -Pandroid.compileSdkVersion=34 -Pandroid.buildToolsVersion=34.0.0
+
+      - uses: actions/upload-artifact@v4
         with:
           name: phonics-app-apk
           path: android/app/build/outputs/apk/release/*.apk
