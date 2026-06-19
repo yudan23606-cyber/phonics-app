@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: [ main, master ]
-    
+
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -15,7 +15,7 @@ jobs:
       - name: Install JDK 17
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq openjdk-17-jdk unzip
+          sudo apt-get install -y -qq openjdk-17-jdk
 
       - uses: actions/setup-node@v4
         with:
@@ -30,6 +30,10 @@ jobs:
           npx expo prebuild --platform android --clean
 
           cd android
+
+          # 锁定 AGP 版本与 Expo SDK 52 兼容
+          sed -i "s/classpath('com.android.tools.build:gradle')/classpath('com.android.tools.build:gradle:8.5.2')/" build.gradle
+
           chmod +x gradlew
           ./gradlew assembleRelease -Pandroid.compileSdkVersion=34 -Pandroid.buildToolsVersion=34.0.0
 
