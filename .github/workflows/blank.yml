@@ -28,60 +28,38 @@ jobs:
         run: |
           npm install --legacy-peer-deps
           npx expo prebuild --platform android --clean
-
-          # Fix 1: Patch ExpoModulesCorePlugin line 95
           sed -i "95s|from components\.release|// from components.release|" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle 2>/dev/null || true
-
-          # Fix 2: Replace plugins + add compileSdkVersion in all expo modules
-          python3 << 'PYEOF'
+          python3 -c "
 import glob, re
 for f in glob.glob('node_modules/*/android/build.gradle'):
-    with open(f) as fp:
-        content = fp.read()
-    if 'expo-module-gradle-plugin' not in content:
-        continue
+    content = open(f).read()
+    if 'expo-module-gradle-plugin' not in content: continue
     print('Patching: ' + f)
-    content = re.sub(r"[\s]*id ['\"]expo-module-gradle-plugin['\"][\s]*\n", '', content)
+    content = re.sub('[\s]*id [\x27\"]expo-module-gradle-plugin[\x27\"][\s]*\n', '', content)
     if 'compileSdk' not in content:
-        content = re.sub(r'(namespace ".*")\n', r'\1\n  compileSdkVersion 35\n', content)
-    apply_from = 'apply from: new File(rootDir.parentFile, "node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle")\n'
-    content = re.sub(r'^}$', '}\n' + apply_from, content, count=1)
-    with open(f, 'w') as fp:
-        fp.write(content)
-PYEOF
-
-          # Fix 3: Mock stubs in :expo module
-          MOCK_DIR=node_modules/expo/android/src/main/java/expo/modules/systemui
-          mkdir -p "$MOCK_DIR"
-          cat > "$MOCK_DIR/SystemUIPackage.java" << 'JAVAEOF'
-package expo.modules.systemui;
-import expo.modules.core.BasePackage;
-public class SystemUIPackage extends BasePackage {}
-JAVAEOF
-          cat > "$MOCK_DIR/SystemUIModule.java" << 'JAVAEOF'
-package expo.modules.systemui;
-import expo.modules.kotlin.modules.Module;
-import expo.modules.kotlin.modules.ModuleDefinition;
-public class SystemUIModule extends Module {
-    @Override
-    public ModuleDefinition createModuleDefinition() {
-        return ModuleDefinition.create("ExpoSystemUI").initialize();
-    }
-}
-JAVAEOF
-
-          # Fix 4: Disable javadoc
-          echo "" >> android/build.gradle
-          echo "gradle.taskGraph.whenReady { graph ->" >> android/build.gradle
+        content = re.sub('(namespace \".*\")\n', lambda m: m.group(1) + '\n  compileSdkVersion 35\n', content)
+    content = re.sub('^}$', lambda m: '}\napply from: new File(rootDir.parentFile, \"node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle\")\n', content, count=1, flags=re.MULTILINE)
+    open(f, 'w').write(content)
+"
+          mkdir -p node_modules/expo/android/src/main/java/expo/modules/systemui
+          echo 'package expo.modules.systemui;' > node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIPackage.java
+          echo 'import expo.modules.core.BasePackage;' >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIPackage.java
+          echo 'public class SystemUIPackage extends BasePackage {}' >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIPackage.java
+          echo 'package expo.modules.systemui;' > node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
+          echo 'import expo.modules.kotlin.modules.Module;' >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
+          echo 'import expo.modules.kotlin.modules.ModuleDefinition;' >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
+          echo 'public class SystemUIModule extends Module {' >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
+          echo '    public ModuleDefinition createModuleDefinition() {' >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
+          echo '        return ModuleDefinition.create("ExpoSystemUI").initialize();' >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
+          echo '    }' >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
+          echo '}' >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
+          echo '' >> android/build.gradle
+          echo 'gradle.taskGraph.whenReady { graph ->' >> android/build.gradle
           echo '    graph.allTasks.each { task ->' >> android/build.gradle
-          echo '        if (task.name.contains("javadoc") || task.name.contains("dokka")) {' >> android/build.gradle
-          echo '            task.enabled = false' >> android/build.gradle
-          echo '        }' >> android/build.gradle
+          echo '        if (task.name.contains("javadoc") || task.name.contains("dokka")) { task.enabled = false }' >> android/build.gradle
           echo '    }' >> android/build.gradle
           echo '}' >> android/build.gradle
-
-          cd android
-          chmod +x gradlew
+          cd android && chmod +x gradlew
           ./gradlew assembleRelease -Pandroid.compileSdkVersion=34 -Pandroid.buildToolsVersion=34.0.0
 
       - uses: actions/upload-artifact@v4
