@@ -49,7 +49,7 @@ jobs:
           echo "        if (task.name.contains(\"javadoc\") || task.name.contains(\"dokka\")) { task.enabled = false }" >> android/build.gradle
           echo "    }" >> android/build.gradle
           echo "}" >> android/build.gradle
-          echo 'afterEvaluate { tasks.findAll { it.name.matches(/.*compile.*JavaWithJavac/) }.each { t -> t.doFirst { def d = layout.buildDirectory.dir("generated/expo/src/main/java/expo/modules").get().asFile; def f = new File(d, "ExpoModulesPackageList.java"); if (f.exists()) { f.text = f.text.replaceAll("(?m)^[ \\\\t]*new expo\\\\.modules\\\\.systemui\\\\.SystemUIPackage\\\\(\\\\)[ \\\\t,]*$\\\\n?", "").replaceAll("(?m)^[ \\\\t]*Class<SystemUIModule>[ \\\\t,]*$\\\\n?", "") } } } }' >> node_modules/expo/android/build.gradle
+          echo "afterEvaluate { tasks.findAll { it.name.matches(/.*compile.*JavaWithJavac/) }.each { t -> t.doFirst { def d = layout.buildDirectory.dir(\"generated/expo/src/main/java/expo/modules\").get().asFile; def f = new File(d, \"ExpoModulesPackageList.java\"); if (f.exists()) { f.text = f.text.replaceAll('''(?m)^[ \t]*new expo\.modules\.systemui\.SystemUIPackage\(\)[ \t,]*$\n?''', \"\").replaceAll('''(?m)^[ \t]*Class<SystemUIModule>[ \t,]*$\n?''', \"\") } } } }" >> node_modules/expo/android/build.gradle
       - name: Step 3 - Build APK
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
