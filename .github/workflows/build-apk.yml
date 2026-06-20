@@ -43,19 +43,13 @@ jobs:
               sed -i '0,/^}$/{s#^}$#}\napply from: new File(rootDir.parentFile, "node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle")#}' "$f"
             fi
           done
-          mkdir -p node_modules/expo/android/src/main/java/expo/modules/systemui
-          echo "package expo.modules.systemui;" > node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIPackage.java
-          echo "import expo.modules.core.BasePackage;" >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIPackage.java
-          echo "public class SystemUIPackage extends BasePackage {}" >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIPackage.java
-          echo "package expo.modules.systemui;" > node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
-          echo "import expo.modules.kotlin.modules.Module;" >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
-          echo "public abstract class SystemUIModule extends Module {}" >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
           echo "" >> android/build.gradle
           echo "gradle.taskGraph.whenReady { graph ->" >> android/build.gradle
           echo "    graph.allTasks.each { task ->" >> android/build.gradle
           echo "        if (task.name.contains(\"javadoc\") || task.name.contains(\"dokka\")) { task.enabled = false }" >> android/build.gradle
           echo "    }" >> android/build.gradle
           echo "}" >> android/build.gradle
+          echo 'afterEvaluate { tasks.findAll { it.name.matches(/.*compile.*JavaWithJavac/) }.each { t -> t.doFirst { def d = layout.buildDirectory.dir("generated/expo/src/main/java/expo/modules").get().asFile; def f = new File(d, "ExpoModulesPackageList.java"); if (f.exists()) { f.text = f.text.replaceAll("(?m)^[ \\\\t]*new expo\\\\.modules\\\\.systemui\\\\.SystemUIPackage\\\\(\\\\)[ \\\\t,]*$\\\\n?", "").replaceAll("(?m)^[ \\\\t]*Class<SystemUIModule>[ \\\\t,]*$\\\\n?", "") } } } }' >> node_modules/expo/android/build.gradle
       - name: Step 3 - Build APK
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
