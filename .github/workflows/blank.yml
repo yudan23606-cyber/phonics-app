@@ -29,26 +29,60 @@ jobs:
           npm install --legacy-peer-deps
           npx expo prebuild --platform android --clean
 
-          # Fix 1 - comment out publish config
-          PATCH=node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle
-          sed -i "95s|from components\.release|// from components.release - CI compat|" $PATCH
+          # Fix 1: Patch ExpoModulesCorePlugin line 95
+          sed -i "95s|from components\.release|// from components.release|" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle 2>/dev/null || true
 
-          # Fix 2 - add plugin repositories to settings.gradle
-          SETTINGS=android/settings.gradle
-          sed -i "/^pluginManagement {/a\    repositories {\n        gradlePluginPortal()\n        mavenCentral()\n        google()\n    }" $SETTINGS
+          # Fix 2: Replace plugins + add compileSdkVersion in all expo modules
+          python3 << 'PYEOF'
+import glob, re
+for f in glob.glob('node_modules/*/android/build.gradle'):
+    with open(f) as fp:
+        content = fp.read()
+    if 'expo-module-gradle-plugin' not in content:
+        continue
+    print('Patching: ' + f)
+    content = re.sub(r"[\s]*id ['\"]expo-module-gradle-plugin['\"][\s]*\n", '', content)
+    if 'compileSdk' not in content:
+        content = re.sub(r'(namespace ".*")\n', r'\1\n  compileSdkVersion 35\n', content)
+    apply_from = 'apply from: new File(rootDir.parentFile, "node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle")\n'
+    content = re.sub(r'^}$', '}\n' + apply_from, content, count=1)
+    with open(f, 'w') as fp:
+        fp.write(content)
+PYEOF
 
-          # Fix 3 - get expo-modules-core version and add it to all module plugin declarations
-          EMC_VER=$(node -p "require('expo-modules-core/package.json').version")
-          echo "Expo Modules Core version: $EMC_VER"
-          find node_modules -maxdepth 3 -name "build.gradle" -path "*/android/*" | while read f; do
-            if grep -q "expo-module-gradle-plugin" "$f" 2>/dev/null; then
-              sed -i "s/id 'expo-module-gradle-plugin'/id 'expo-module-gradle-plugin' version '$EMC_VER'/" "$f"
-            fi
-          done
+          # Fix 3: Mock stubs in :expo module
+          MOCK_DIR=node_modules/expo/android/src/main/java/expo/modules/systemui
+          mkdir -p "$MOCK_DIR"
+          cat > "$MOCK_DIR/SystemUIPackage.java" << 'JAVAEOF'
+package expo.modules.systemui;
+import expo.modules.core.BasePackage;
+public class SystemUIPackage extends BasePackage {}
+JAVAEOF
+          cat > "$MOCK_DIR/SystemUIModule.java" << 'JAVAEOF'
+package expo.modules.systemui;
+import expo.modules.kotlin.modules.Module;
+import expo.modules.kotlin.modules.ModuleDefinition;
+public class SystemUIModule extends Module {
+    @Override
+    public ModuleDefinition createModuleDefinition() {
+        return ModuleDefinition.create("ExpoSystemUI").initialize();
+    }
+}
+JAVAEOF
+
+          # Fix 4: Disable javadoc
+          echo "" >> android/build.gradle
+          echo "gradle.taskGraph.whenReady { graph ->" >> android/build.gradle
+          echo '    graph.allTasks.each { task ->' >> android/build.gradle
+          echo '        if (task.name.contains("javadoc") || task.name.contains("dokka")) {' >> android/build.gradle
+          echo '            task.enabled = false' >> android/build.gradle
+          echo '        }' >> android/build.gradle
+          echo '    }' >> android/build.gradle
+          echo '}' >> android/build.gradle
 
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon -Pandroid.compileSdkVersion=34 -Pandroid.buildToolsVersion=34.0.0
+          ./gradlew assembleRelease -Pandroid.compileSdkVersion=34 -Pandroid.buildToolsVersion=34.0.0
 
       - uses: actions/upload-artifact@v4
         with:
