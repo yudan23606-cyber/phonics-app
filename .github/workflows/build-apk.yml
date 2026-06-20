@@ -1,0 +1,76 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install JDK 17
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq openjdk-17-jdk
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Step 1 - Install & prebuild
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+          ANDROID_HOME: /usr/local/lib/android/sdk
+        run: |
+          npm install --legacy-peer-deps
+          npx expo prebuild --platform android --clean
+      - name: Step 2 - Apply patches
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+          ANDROID_HOME: /usr/local/lib/android/sdk
+        run: |
+          find src -name "*.js" -exec sed -i 's/\\"/"/g' {} \;
+          python3 -c "c=open('src/screens/PracticeScreen.js').read(); c=c.replace('{recognizedText ? (\n                  <Text style={styles.recognizedLabel}>','{recognizedText ? (\n                  <>\n                    <Text style={styles.recognizedLabel}>'); c=c.replace('                  ) : null}\n                ) : null}','                  ) : null}\n                  </>\n                ) : null}'); open('src/screens/PracticeScreen.js','w').write(c)"
+          sed -i "95s|from components\.release|// from components.release|" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle 2>/dev/null || true
+          find node_modules -maxdepth 3 -name build.gradle -path "*/android/*" | while read f; do
+            if grep -q "expo-module-gradle-plugin" "$f" 2>/dev/null; then
+              echo "Patching: $f"
+              sed -i '/id .expo-module-gradle-plugin./d' "$f"
+              if ! grep -q "compileSdk" "$f"; then
+                sed -i '/namespace /a\  compileSdkVersion 35' "$f"
+              fi
+              sed -i '0,/^}$/{s#^}$#}\napply from: new File(rootDir.parentFile, "node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle")#}' "$f"
+            fi
+          done
+          mkdir -p node_modules/expo/android/src/main/java/expo/modules/systemui
+          echo "package expo.modules.systemui;" > node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIPackage.java
+          echo "import expo.modules.core.BasePackage;" >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIPackage.java
+          echo "public class SystemUIPackage extends BasePackage {}" >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIPackage.java
+          echo "package expo.modules.systemui;" > node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
+          echo "import expo.modules.kotlin.modules.Module;" >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
+          echo "import expo.modules.kotlin.modules.ModuleDefinition;" >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
+          echo "public class SystemUIModule extends Module {" >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
+          echo "    protected ModuleDefinition createModuleDefinition() {" >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
+          echo "        return ModuleDefinition.create(\"ExpoSystemUI\").initialize();" >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
+          echo "    }" >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
+          echo "}" >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
+          echo "" >> android/build.gradle
+          echo "gradle.taskGraph.whenReady { graph ->" >> android/build.gradle
+          echo "    graph.allTasks.each { task ->" >> android/build.gradle
+          echo "        if (task.name.contains(\"javadoc\") || task.name.contains(\"dokka\")) { task.enabled = false }" >> android/build.gradle
+          echo "    }" >> android/build.gradle
+          echo "}" >> android/build.gradle
+      - name: Step 3 - Build APK
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+          ANDROID_HOME: /usr/local/lib/android/sdk
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease -Pandroid.compileSdkVersion=34 -Pandroid.buildToolsVersion=34.0.0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phonics-app-apk
+          path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
