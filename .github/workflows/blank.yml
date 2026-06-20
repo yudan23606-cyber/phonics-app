@@ -25,15 +25,23 @@ jobs:
         run: |
           npm install --legacy-peer-deps
           npx expo prebuild --platform android --clean
-      - name: Step 2 - Apply patches
+    - name: Step 2 - Apply patches
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
           ANDROID_HOME: /usr/local/lib/android/sdk
-       
         run: |
-          # Fix source files
+          # Fix source files - remove \"
           find src -name "*.js" -exec sed -i 's/\\"/"/g' {} \;
 
+          # Fix JSX - add fragment wrapper
+          python3 -c '
+with open("src/screens/PracticeScreen.js") as f:
+    c = f.read()
+c = c.replace("{recognizedText ? (\n                  <Text style={styles.recognizedLabel}>", "{recognizedText ? (\n                  <>\n                    <Text style={styles.recognizedLabel}>")
+c = c.replace("                  ) : null}\n                ) : null}", "                  ) : null}\n                  </>\n                ) : null}")
+with open("src/screens/PracticeScreen.js", "w") as f:
+    f.write(c)
+'
           sed -i "95s|from components\.release|// from components.release|" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle 2>/dev/null || true
           find node_modules -maxdepth 3 -name build.gradle -path "*/android/*" | while read f; do
             if grep -q "expo-module-gradle-plugin" "$f" 2>/dev/null; then
