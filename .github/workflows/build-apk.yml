@@ -49,7 +49,10 @@ jobs:
           echo "public class SystemUIPackage extends BasePackage {}" >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIPackage.java
           echo "package expo.modules.systemui;" > node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
           echo "import expo.modules.kotlin.modules.Module;" >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
-          echo "public class SystemUIModule extends Module {}" >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
+          echo "import expo.modules.kotlin.modules.ModuleDefinition;" >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
+          echo "public class SystemUIModule extends Module {" >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
+          echo "    public ModuleDefinition definition() { return null; }" >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
+          echo "}" >> node_modules/expo/android/src/main/java/expo/modules/systemui/SystemUIModule.java
           echo "" >> android/build.gradle
           echo "gradle.taskGraph.whenReady { graph ->" >> android/build.gradle
           echo "    graph.allTasks.each { task ->" >> android/build.gradle
